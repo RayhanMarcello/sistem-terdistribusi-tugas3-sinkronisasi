@@ -1,0 +1,65 @@
+# =============================================================
+# Dockerfile.node - Distributed Sync Node
+# Multi-stage build for production optimization
+# =============================================================
+
+# ---- Stage 1: Build gRPC stubs ----
+FROM python:3.11-slim AS proto-builder
+
+WORKDIR /proto-build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ && \
+    pip install --no-cache-dir grpcio-tools==1.64.1 protobuf==5.27.2 && \
+    rm -rf /var/lib/apt/lists/*
+
+COPY src/proto/ ./proto/
+RUN mkdir -p /proto-build/generated && \
+    python -m grpc_tools.protoc \
+        -I./proto \
+        --python_out=./generated \
+        --grpc_python_out=./generated \
+        ./proto/node.proto && \
+    touch ./generated/__init__.py
+
+# ---- Stage 2: Runtime ----
+FROM python:3.11-slim AS runtime
+
+LABEL maintainer="RayhanMarcello"
+LABEL description="Distributed Sync System Node"
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    openssl \
+    curl \
+    iproute2 \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy generated gRPC stubs
+COPY --from=proto-builder /proto-build/generated/ ./src/proto/generated/
+
+# Copy application source
+COPY src/ ./src/
+COPY scripts/generate_certs.sh ./scripts/
+RUN chmod +x ./scripts/generate_certs.sh
+
+# Create directories
+RUN mkdir -p /app/certs /app/models /app/logs
+
+# Health check
+HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${METRICS_PORT:-9091}/health || exit 1
+
+# Entrypoint: generate certs then start node
+COPY docker/entrypoint.node.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

@@ -1,0 +1,580 @@
+syntax = "proto3";
+
+package distributed;
+
+option py_generic_services = true;
+
+// =============================================================
+// Distributed Sync System - gRPC Service Definitions
+// Proto3 for all inter-node communication
+// =============================================================
+
+// -----------------------------------------------
+// Common Types
+// -----------------------------------------------
+message Empty {}
+
+message NodeInfo {
+    string node_id    = 1;
+    string host       = 2;
+    int32  grpc_port  = 3;
+    string region     = 4;
+    string role       = 5;  // leader | follower | candidate
+    int64  term       = 6;
+    int64  timestamp  = 7;
+    map<string, string> metadata = 8;
+}
+
+// -----------------------------------------------
+// A. Raft Consensus Service
+// -----------------------------------------------
+service RaftService {
+    rpc RequestVote    (RequestVoteRequest)    returns (RequestVoteResponse);
+    rpc AppendEntries  (AppendEntriesRequest)  returns (AppendEntriesResponse);
+    rpc InstallSnapshot(SnapshotRequest)       returns (SnapshotResponse);
+}
+
+message LogEntry {
+    int64  term    = 1;
+    int64  index   = 2;
+    bytes  command = 3;  // serialized JSON command
+    string type    = 4;  // lock_acquire | lock_release | cache_write | etc.
+}
+
+message RequestVoteRequest {
+    int64  term           = 1;
+    string candidate_id   = 2;
+    int64  last_log_index = 3;
+    int64  last_log_term  = 4;
+}
+
+message RequestVoteResponse {
+    int64 term         = 1;
+    bool  vote_granted = 2;
+}
+
+message AppendEntriesRequest {
+    int64       term           = 1;
+    string      leader_id      = 2;
+    int64       prev_log_index = 3;
+    int64       prev_log_term  = 4;
+    repeated LogEntry entries  = 5;
+    int64       leader_commit  = 6;
+}
+
+message AppendEntriesResponse {
+    int64 term    = 1;
+    bool  success = 2;
+    int64 match_index = 3;  // for optimization
+}
+
+message SnapshotRequest {
+    int64  term                = 1;
+    string leader_id           = 2;
+    int64  last_included_index = 3;
+    int64  last_included_term  = 4;
+    bytes  data                = 5;
+}
+
+message SnapshotResponse {
+    int64 term = 1;
+}
+
+// -----------------------------------------------
+// B. Lock Management Service
+// -----------------------------------------------
+service LockService {
+    rpc AcquireLock   (LockRequest)        returns (LockResponse);
+    rpc ReleaseLock   (ReleaseRequest)     returns (ReleaseResponse);
+    rpc RenewLock     (RenewRequest)       returns (RenewResponse);
+    rpc GetLockStatus (LockStatusRequest)  returns (LockStatusResponse);
+    rpc DetectDeadlock(DeadlockRequest)    returns (DeadlockResponse);
+    rpc ListLocks     (ListLocksRequest)   returns (ListLocksResponse);
+}
+
+enum LockType {
+    SHARED    = 0;
+    EXCLUSIVE = 1;
+}
+
+message LockRequest {
+    string    lock_id     = 1;
+    LockType  lock_type   = 2;
+    string    client_id   = 3;
+    int64     timeout_ms  = 4;  // 0 = use default
+    int64     lease_ms    = 5;
+}
+
+message LockResponse {
+    bool   success     = 1;
+    string lease_token = 2;
+    string message     = 3;
+    int64  expires_at  = 4;  // unix timestamp ms
+}
+
+message ReleaseRequest {
+    string lock_id     = 1;
+    string client_id   = 2;
+    string lease_token = 3;
+}
+
+message ReleaseResponse {
+    bool   success = 1;
+    string message = 2;
+}
+
+message RenewRequest {
+    string lock_id     = 1;
+    string client_id   = 2;
+    string lease_token = 3;
+    int64  extend_ms   = 4;
+}
+
+message RenewResponse {
+    bool   success    = 1;
+    int64  expires_at = 2;
+}
+
+message LockStatusRequest {
+    string lock_id = 1;
+}
+
+message LockStatusResponse {
+    string   lock_id    = 1;
+    LockType lock_type  = 2;
+    string   owner      = 3;
+    int64    expires_at = 4;
+    int32    waiter_count = 5;
+    bool     exists     = 6;
+}
+
+message DeadlockRequest {
+    string requesting_client = 1;
+    string requested_lock    = 2;
+}
+
+message DeadlockResponse {
+    bool     deadlock_detected = 1;
+    repeated string cycle      = 2;  // clients in deadlock cycle
+}
+
+message ListLocksRequest {
+    string filter_type = 1;  // all | shared | exclusive
+}
+
+message LockInfo {
+    string   lock_id       = 1;
+    LockType lock_type     = 2;
+    string   owner         = 3;
+    int64    acquired_at   = 4;
+    int64    expires_at    = 5;
+    int32    waiter_count  = 6;
+}
+
+message ListLocksResponse {
+    repeated LockInfo locks = 1;
+    int32 total             = 2;
+}
+
+// -----------------------------------------------
+// C. Cache Coherence Service (MOESI)
+// -----------------------------------------------
+service CacheService {
+    rpc ReadCache        (CacheReadRequest)    returns (CacheReadResponse);
+    rpc WriteCache       (CacheWriteRequest)   returns (CacheWriteResponse);
+    rpc InvalidateCache  (InvalidateRequest)   returns (InvalidateResponse);
+    rpc RequestOwnership (OwnershipRequest)    returns (OwnershipResponse);
+    rpc GetCacheState    (CacheStateRequest)   returns (CacheStateResponse);
+    rpc Intervention     (InterventionRequest) returns (InterventionResponse);
+    rpc WriteBack        (WriteBackRequest)    returns (WriteBackResponse);
+    rpc GetCacheStats    (Empty)               returns (CacheStatsResponse);
+}
+
+enum MOESIState {
+    MODIFIED  = 0;
+    OWNED     = 1;
+    EXCLUSIVE = 2;
+    SHARED    = 3;
+    INVALID   = 4;
+}
+
+message CacheReadRequest {
+    string requester_id = 1;
+    string cache_key    = 2;
+}
+
+message CacheReadResponse {
+    bool        success    = 1;
+    bytes       value      = 2;
+    MOESIState  state      = 3;
+    int64       version    = 4;
+    string      owner_node = 5;
+    string      message    = 6;
+}
+
+message CacheWriteRequest {
+    string requester_id = 1;
+    string cache_key    = 2;
+    bytes  value        = 3;
+    int64  ttl_seconds  = 4;
+}
+
+message CacheWriteResponse {
+    bool   success = 1;
+    int64  version = 2;
+    string message = 3;
+}
+
+message InvalidateRequest {
+    string sender_id  = 1;
+    string cache_key  = 2;
+    int64  version    = 3;
+    string reason     = 4;  // write | eviction | expiry
+}
+
+message InvalidateResponse {
+    bool success = 1;
+    bool had_dirty = 2;  // true if node had Modified/Owned state
+}
+
+message OwnershipRequest {
+    string requester_id = 1;
+    string cache_key    = 2;
+}
+
+message OwnershipResponse {
+    bool       success    = 1;
+    bytes      value      = 2;
+    int64      version    = 3;
+    MOESIState old_state  = 4;
+}
+
+message CacheStateRequest {
+    string cache_key = 1;
+}
+
+message CacheStateResponse {
+    string     cache_key   = 1;
+    MOESIState state       = 2;
+    string     owner_node  = 3;
+    int64      version     = 4;
+    bool       found       = 5;
+}
+
+message InterventionRequest {
+    string owner_id     = 1;  // current owner
+    string requester_id = 2;  // wants shared copy
+    string cache_key    = 3;
+}
+
+message InterventionResponse {
+    bytes  value   = 1;
+    int64  version = 2;
+    bool   success = 3;
+}
+
+message WriteBackRequest {
+    string node_id   = 1;
+    string cache_key = 2;
+    bytes  value     = 3;
+    int64  version   = 4;
+}
+
+message WriteBackResponse {
+    bool success = 1;
+}
+
+message CacheStatsResponse {
+    int64 hits          = 1;
+    int64 misses        = 2;
+    int64 invalidations = 3;
+    int64 evictions     = 4;
+    int32 size          = 5;
+    int32 capacity      = 6;
+    double hit_rate     = 7;
+    map<string, int64> state_counts = 8;  // MOESI state distribution
+}
+
+// -----------------------------------------------
+// D. Queue Service
+// -----------------------------------------------
+service QueueService {
+    rpc Enqueue       (EnqueueRequest)       returns (EnqueueResponse);
+    rpc Dequeue       (DequeueRequest)       returns (DequeueResponse);
+    rpc Acknowledge   (AckRequest)           returns (AckResponse);
+    rpc GetQueueStats (QueueStatsRequest)    returns (QueueStatsResponse);
+    rpc GetNodeForKey (NodeForKeyRequest)    returns (NodeForKeyResponse);
+}
+
+message Message {
+    string message_id   = 1;
+    string topic        = 2;
+    string partition_key = 3;
+    bytes  payload      = 4;
+    map<string, string> headers = 5;
+    int64  created_at   = 6;
+    int32  retry_count  = 7;
+}
+
+message EnqueueRequest {
+    string topic        = 1;
+    string partition_key = 2;
+    bytes  payload      = 3;
+    map<string, string> headers = 4;
+    string producer_id  = 5;
+}
+
+message EnqueueResponse {
+    bool   success    = 1;
+    string message_id = 2;
+    string node_id    = 3;  // which node owns this partition
+    int32  partition  = 4;
+    string message    = 5;
+}
+
+message DequeueRequest {
+    string topic        = 1;
+    string consumer_id  = 2;
+    string consumer_group = 3;
+    int32  max_messages = 4;
+}
+
+message DequeueResponse {
+    repeated Message messages = 1;
+    bool success              = 2;
+}
+
+message AckRequest {
+    string message_id  = 1;
+    string consumer_id = 2;
+    bool   success     = 3;  // false = NACK, requeue
+}
+
+message AckResponse {
+    bool success = 1;
+}
+
+message QueueStatsRequest {
+    string topic = 1;
+}
+
+message QueueStatsResponse {
+    string topic           = 1;
+    int64  total_messages  = 2;
+    int64  pending         = 3;
+    int64  processing      = 4;
+    int64  completed       = 5;
+    int64  failed          = 6;
+    double throughput_rps  = 7;  // messages per second
+    map<string, int64> partition_sizes = 8;
+}
+
+message NodeForKeyRequest {
+    string partition_key = 1;
+}
+
+message NodeForKeyResponse {
+    string node_id  = 1;
+    int32  partition = 2;
+    string vnodes   = 3;
+}
+
+// -----------------------------------------------
+// E. PBFT Service (Bonus A)
+// -----------------------------------------------
+service PBFTService {
+    rpc PrePrepare  (PrePrepareRequest)  returns (PrePrepareResponse);
+    rpc Prepare     (PrepareRequest)     returns (PrepareResponse);
+    rpc Commit      (CommitRequest)      returns (CommitResponse);
+    rpc ViewChange  (ViewChangeRequest)  returns (ViewChangeResponse);
+    rpc NewView     (NewViewRequest)     returns (NewViewResponse);
+    rpc GetPBFTState(Empty)              returns (PBFTStateResponse);
+}
+
+message PBFTRequest {
+    bytes  operation  = 1;  // serialized operation
+    string client_id  = 2;
+    int64  timestamp  = 3;
+    bytes  signature  = 4;
+}
+
+message PrePrepareRequest {
+    int64       view              = 1;
+    int64       sequence          = 2;
+    string      digest            = 3;
+    PBFTRequest request           = 4;
+    string      primary_id        = 5;
+    bytes       primary_signature = 6;
+}
+
+message PrePrepareResponse {
+    bool   accepted = 1;
+    string message  = 2;
+}
+
+message PrepareRequest {
+    int64  view      = 1;
+    int64  sequence  = 2;
+    string digest    = 3;
+    string node_id   = 4;
+    bytes  signature = 5;
+}
+
+message PrepareResponse {
+    bool success = 1;
+}
+
+message CommitRequest {
+    int64  view      = 1;
+    int64  sequence  = 2;
+    string digest    = 3;
+    string node_id   = 4;
+    bytes  signature = 5;
+}
+
+message CommitResponse {
+    bool   success = 1;
+    bytes  result  = 2;
+}
+
+message ViewChangeRequest {
+    int64  new_view  = 1;
+    string node_id   = 2;
+    int64  last_seq  = 3;
+    bytes  signature = 4;
+}
+
+message ViewChangeResponse {
+    bool success = 1;
+}
+
+message NewViewRequest {
+    int64  view              = 1;
+    string primary_id        = 2;
+    repeated ViewChangeRequest view_changes = 3;
+    bytes  signature         = 4;
+}
+
+message NewViewResponse {
+    bool success = 1;
+}
+
+message PBFTStateResponse {
+    int64  current_view     = 1;
+    int64  current_sequence = 2;
+    string primary_id       = 3;
+    bool   is_primary       = 4;
+    int32  total_nodes      = 5;
+    int32  faulty_tolerance = 6;
+}
+
+// -----------------------------------------------
+// F. Node Management Service
+// -----------------------------------------------
+service NodeService {
+    rpc Heartbeat   (HeartbeatRequest)   returns (HeartbeatResponse);
+    rpc GetNodeInfo (Empty)              returns (NodeInfo);
+    rpc JoinCluster (JoinRequest)        returns (JoinResponse);
+    rpc LeaveCluster(LeaveRequest)       returns (LeaveResponse);
+    rpc GetCluster  (Empty)              returns (ClusterInfo);
+}
+
+message HeartbeatRequest {
+    string sender_id  = 1;
+    int64  timestamp  = 2;
+    int64  term       = 3;
+}
+
+message HeartbeatResponse {
+    bool   alive     = 1;
+    int64  timestamp = 2;
+    string role      = 3;
+}
+
+message JoinRequest {
+    string node_id = 1;
+    string host    = 2;
+    int32  port    = 3;
+    string region  = 4;
+}
+
+message JoinResponse {
+    bool   success      = 1;
+    string leader_id    = 2;
+    repeated NodeInfo cluster_nodes = 3;
+    string message      = 4;
+}
+
+message LeaveRequest {
+    string node_id = 1;
+    string reason  = 2;
+}
+
+message LeaveResponse {
+    bool success = 1;
+}
+
+message ClusterInfo {
+    repeated NodeInfo nodes = 1;
+    string leader_id        = 2;
+    int64  term             = 3;
+    int32  quorum_size      = 4;
+    bool   is_healthy       = 5;
+}
+
+// -----------------------------------------------
+// G. Geo-Distributed Service (Bonus B)
+// -----------------------------------------------
+service GeoService {
+    rpc RouteRequest    (GeoRouteRequest)     returns (GeoRouteResponse);
+    rpc ReplicateData   (ReplicationRequest)  returns (ReplicationResponse);
+    rpc GetRegionStatus (Empty)               returns (RegionStatusResponse);
+    rpc SyncVectorClock (VectorClockRequest)  returns (VectorClockResponse);
+}
+
+message GeoRouteRequest {
+    string client_region  = 1;
+    string operation_type = 2;  // read | write
+    bytes  payload        = 3;
+}
+
+message GeoRouteResponse {
+    string target_node    = 1;
+    string target_region  = 2;
+    int64  estimated_latency_ms = 3;
+    bool   success        = 4;
+    bytes  result         = 5;
+}
+
+message ReplicationRequest {
+    string source_region = 1;
+    string key           = 2;
+    bytes  value         = 3;
+    int64  vector_clock  = 4;
+    string operation     = 5;
+}
+
+message ReplicationResponse {
+    bool success  = 1;
+    bool conflict = 2;
+    string message = 3;
+}
+
+message RegionStatusResponse {
+    string region         = 1;
+    bool   is_healthy     = 2;
+    int64  latency_to_us  = 3;
+    int64  latency_to_eu  = 4;
+    int64  latency_to_asia = 5;
+}
+
+message VectorClockRequest {
+    string node_id         = 1;
+    string region          = 2;
+    map<string, int64> clock = 3;  // node_id -> counter
+}
+
+message VectorClockResponse {
+    map<string, int64> merged_clock = 1;
+    bool conflict = 2;
+}

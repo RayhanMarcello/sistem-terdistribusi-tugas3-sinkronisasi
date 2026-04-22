@@ -1,0 +1,75 @@
+# Video script - not to be committed
+video_script.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+pip-wheel-metadata/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.log
+
+# Virtual environments
+venv/
+env/
+ENV/
+.env
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+docker/data/
+docker/logs/
+
+# Certificates (auto-generated)
+certs/
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+
+# ML models
+models/
+*.pkl
+*.joblib
+*.h5
+
+# Generated proto files
+src/proto/generated/
+
+# Database
+*.db
+*.sqlite
+
+# Logs
+logs/
+*.log
+
+# Grafana provisioning data
+monitoring/grafana/data/
+
+# Temporary
+tmp/
+temp/
+.tmp/
