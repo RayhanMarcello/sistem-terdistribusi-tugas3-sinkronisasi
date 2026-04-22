@@ -1,4 +1,4 @@
-# Tugas 3 Sistem Paralel dan Terdistribusi: Sinkronisasi Lanjut
+# Tugas 3 Sistem Paralel dan Terdistribusi: Sinkronisasi
 
 Selamat datang di repositori implementasi **Sistem Sinkronisasi Terdistribusi tingkat lanjut**. Proyek ini dikembangkan menggunakan **Python (Asyncio)**, **gRPC**, dan arsitektur *microservices* terisolasi berbasis **Docker**, dirancang khusus untuk memenuhi kriteria dan bonus Tugas 3 Sistem Terdistribusi.
 
@@ -6,7 +6,7 @@ Proyek ini mendemonstrasikan penyelesaian berbagai tantangan kompleks dalam sist
 
 ---
 
-## 🌟 Fitur Utama (Core Requirements)
+## Fitur Utama (Core Requirements)
 
 ### 1. Distributed Lock Manager (Raft Consensus)
 Mencegah terjadinya tabrakan antar node saat mengakses *shared resource* (sumber daya bersama).
@@ -27,7 +27,7 @@ Menjaga konsistensi data (*memory/cache*) antar node di seluruh jaringan kompute
 
 ---
 
-## 🚀 Fitur Tambahan Terintegrasi (Bonus)
+## Fitur Tambahan Terintegrasi (Bonus)
 
 Sebagai penambahan yang komprehensif, repositori ini mengimplementasikan keseluruhan poin Bonus:
 
@@ -49,7 +49,7 @@ Sistem tidak dapat dimasuki dan dieksekusi secara sembarang:
 
 ---
 
-## 🛠 Teknologi Utama
+## Teknologi Utama
 
 * **Bahasa**: Python 3.11 `asyncio`
 * **Persistensi / Log**: MySQL 8.0, Redis, Kafka, Zookeeper
@@ -61,7 +61,7 @@ Sistem tidak dapat dimasuki dan dieksekusi secara sembarang:
 
 ---
 
-## ⚙️ Petunjuk Menjalankan Instansi (Zero-Config)
+## Petunjuk Menjalankan Instansi (Zero-Config)
 
 Untuk mendemonstrasikan sistem ini tidak membutuhkan setup lokal (kecuali Docker dan Git). Semua infrastruktur dari skema Database, Broker Partisi, hingga sertifikat SSL dibuat otomatis *pada waktu runtime* (*zero-config*).
 
@@ -90,7 +90,7 @@ docker-compose up -d --build
 
 ---
 
-## 📁 Struktur Direktori Proyek
+## Struktur Direktori Proyek
 
 ```text
 .
