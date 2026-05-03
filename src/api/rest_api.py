@@ -144,6 +144,7 @@ async def api_read_cache(req: CacheReadRequest, token: str = Depends(get_auth_to
 # --------------------------------------------------
 # System Status
 # --------------------------------------------------
+@app.get("/health")
 @app.get("/api/health")
 async def api_health():
     """Check API Gateway health"""
