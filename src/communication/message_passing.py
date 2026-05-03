@@ -51,7 +51,7 @@ class LockServicer(node_pb2_grpc.LockServiceServicer):
 
     async def AcquireLock(self, request, context):
         from src.nodes.lock_manager import LockType
-        ltype = LockType.EXCLUSIVE if request.lock_type == node_pb2.LockType.EXCLUSIVE else LockType.SHARED
+        ltype = LockType.EXCLUSIVE if request.lock_type == node_pb2.LOCK_EXCLUSIVE else LockType.SHARED
         success, lease_token, msg = await self.node.acquire_lock(
             request.lock_id, ltype, request.client_id,
             request.timeout_ms, request.lease_ms
@@ -81,7 +81,7 @@ class CacheServicer(node_pb2_grpc.CacheServiceServicer):
             return node_pb2.CacheReadResponse(success=False)
         return node_pb2.CacheReadResponse(
             success=True, value=val,
-            state=node_pb2.CacheState.Value(state.name),
+            state=node_pb2.MOESIState.Value("STATE_" + state.name),
             version=version
         )
 

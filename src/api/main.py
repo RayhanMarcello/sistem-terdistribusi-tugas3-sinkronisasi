@@ -93,7 +93,7 @@ async def api_acquire_lock(req: AcquireRequest, token: str = Depends(get_auth_to
     try:
         response = await stub.AcquireLock(node_pb2.LockRequest(
             lock_id=req.lock_id,
-            lock_type=node_pb2.LockType.EXCLUSIVE if req.lock_type == "exclusive" else node_pb2.LockType.SHARED,
+            lock_type=node_pb2.LOCK_EXCLUSIVE if req.lock_type == "exclusive" else node_pb2.LOCK_SHARED,
             client_id=req.client_id,
             timeout_ms=req.timeout_ms,
             lease_ms=req.lease_ms

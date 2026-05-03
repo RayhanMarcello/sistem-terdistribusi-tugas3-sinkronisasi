@@ -1,0 +1,29 @@
+berikut merupakan tugas sistem terdistribusi saya pertama sebelum anda mengerjakan berdasarkan gambar tersebut saya akan beri instruksi anda untuk mengerjakannya 
+pertama anda hubungkan project ini dengan github repo yang sudah saya buat untuk linknya : https://github.com/RayhanMarcello/sistem-terdistribusi-tugas3-sinkronisasi
+aturan untuk github repo ini adalah setiap anda melakukan perubahan pada project ini anda harus melakukan commit dan push ke github repo ini. perubahan disini adalah setiap anda selesai mengerjakan satu fitur atau satu bagian dari project ini anda harus melakukan commit dan push ke github repo ini.
+
+untuk core requirements 
+1. distributed lock manager : mengikuti instruksi pada soal
+2. distributed queue system : mengikuti instruksi pada soal
+3. Distributed Cache Coherence : saya ingin implementasi cache coherence protocol MOESI
+4. Containerization : mengikuti instruksi pada soal
+
+untuk Documentation & Reporting 
+1. Technical Documentation : untuk diagram saya ingin menggunakan mermaid diagram dan sisanya anda menyesuaikan instruksi pada soal
+2. Performance Analysis Report : mengikuti instruksi pada soal
+
+untuk  Video Demonstration: buat scripnya dalam txt dan ga dicommit ke repo (.gitignore) karena saya akan membuat video demonya sendiri
+
+untuk bagian bonus feature : penuhi semua ketentuan tersebut agar saya dapat 15 max point tambahan
+
+untuk stack technology : sesuaikan seperti disoal untuk yang wajib digunakan dan optional tools saya rasa gaperlu menggunakan kuberbetes tapi saya ingin menggunakan gRPC untuk inter-node communication,Grafana untuk monitoring,Apache Kafka untuk message streaming. selain itu anda bebas menggunakan tools lain yang menurut anda cocok untuk project ini
+
+project structurenya samakan seperti di soal tersebut
+
+terakhir perhatikan rubrik penilaiannya anda harus penuhin semua yang bisa anda maksimalin sisanya seperti video presentation biar saya yang maksimalin. buat project ini penilaiannya sempurna
+
+untuk environtmentnya gunakan docker compose dan pastikan semua berjalan dengan baik 
+pada file .env berikan contoh mengisinya dan jika ada service yang belum saya install seperti redis berikan instruksi cara menjalankan project yang telah anda buat
+jika ada database gunakan database mysql dan pastikan database tersebut dapat diakses dari luar container
+
+

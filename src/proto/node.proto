@@ -93,8 +93,8 @@ service LockService {
 }
 
 enum LockType {
-    SHARED    = 0;
-    EXCLUSIVE = 1;
+    LOCK_SHARED    = 0;
+    LOCK_EXCLUSIVE = 1;
 }
 
 message LockRequest {
@@ -191,11 +191,11 @@ service CacheService {
 }
 
 enum MOESIState {
-    MODIFIED  = 0;
-    OWNED     = 1;
-    EXCLUSIVE = 2;
-    SHARED    = 3;
-    INVALID   = 4;
+    STATE_MODIFIED  = 0;
+    STATE_OWNED     = 1;
+    STATE_EXCLUSIVE = 2;
+    STATE_SHARED    = 3;
+    STATE_INVALID   = 4;
 }
 
 message CacheReadRequest {
