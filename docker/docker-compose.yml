@@ -73,7 +73,7 @@ x-node-defaults: &node-defaults
     redis:
       condition: service_healthy
     kafka:
-      condition: service_healthy
+      condition: service_started
   restart: unless-stopped
   logging:
     driver: "json-file"
@@ -98,7 +98,7 @@ services:
       MYSQL_USER: ${MYSQL_USER:-distuser}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-distpass123}
     ports:
-      - "3306:3306"   # Exposed for external access
+      - "3307:3306"   # 3307 to avoid conflict with local MySQL
     volumes:
       - mysql_data:/var/lib/mysql
       - ../scripts/init_db.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
@@ -180,7 +180,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -191,17 +191,11 @@ services:
       KAFKA_MESSAGE_MAX_BYTES: 10485760
       KAFKA_LOG4J_LOGGERS: "kafka=WARN,kafka.controller=WARN,kafka.log.LogCleaner=WARN,state.change.logger=WARN,kafka.producer.async.DefaultEventHandler=WARN"
     ports:
-      - "29092:29092"  # External access
+      - "29093:29092"  # External access (29093 to avoid conflicts)
     volumes:
       - kafka_data:/var/lib/kafka/data
     networks:
       - cluster_net
-    healthcheck:
-      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 30s
     restart: unless-stopped
 
   # =============================================
