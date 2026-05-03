@@ -20,7 +20,8 @@ RUN mkdir -p /proto-build/generated && \
         --python_out=./generated \
         --grpc_python_out=./generated \
         ./proto/node.proto && \
-    touch ./generated/__init__.py
+    touch ./generated/__init__.py && \
+    sed -i 's/^import node_pb2/from src.proto.generated import node_pb2/' ./generated/node_pb2_grpc.py
 
 # ---- Stage 2: Runtime ----
 FROM python:3.11-slim AS runtime
